@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <canvas id="bird" width="800" height="600" style="border:1px solid red"></canvas>
+
+    <script>
+        // 思路以及步骤
+        // 1.画小鸟在画布上，将三只鸟轮流出现，利用requestAnimationFrame（）重复执行绘画代码，实现小鸟不艇运动
+        // 2.实现小鸟的向下掉落，主要是算法，以及物理公式,
+        //3.实现小鸟的高度变化的时候出现角度旋转，利用最大高度与最大角度的比例算出当前高度时应该转的角度
+        // 4.实现点击时候反向反向运动，通过设置初始速度反向的方式
+        // 5.设置绘制天空，绘制两张和轮播图实现方式类似 当横坐标小于负的一张时候放到最前面去
+        // 6.我们要监听图片加载全部完成的时候在进行绘制，不进行封装不能全部监听到，将加载的图片全部放在一个对象里面，，只有当全部加载完成，才进行后续代码，图片用键值对的方式取出
+        //7. 封装天空，创建天空的构造函数，利用创建·实例的方式达到服用的目的，函数里面
+
+
+
+
+        var canvas = document.querySelector("#bird");
+        var pen = canvas.getContext("2d");
+
+
+        var imgNames = ["birds.png", "sky.png", "land.png", "pipe1.png", "pipe2.png"];
+        loadImg(imgNames, function (imgs) {
+            // 用这个数组存储所有绘制对象
+            // 因为我们要画四个陆地，我们用循环的方式创建的，绘制的时候要写对个land。draw（）还要再创建的时候加上index标记比较麻烦所以 想到存入数组里面遍历出来
+            var roles = []
+
+            // 绘制天空、两个第一个完了后 将第二个放到第一个
+            // var sky1 = new Sky({
+            //     pen: pen,
+            //     image: imgs["sky.png"],
+            //     x: 0,
+            // });
+            // var sky2 = new Sky({
+            //     pen: pen,
+            //     image: imgs["sky.png"],
+            //     x: imgs["sky.png"].width,
+            // });
+            for (var i = 0; i < 2; i++) {
+                roles.push(new Sky({
+                    pen: pen,
+                    image: imgs["sky.png"],
+                    x: imgs["sky.png"].width * i,
+                }))
+            }
+            // 绘制陆地
+            for (var i = 0; i < 4; i++) {
+                roles.push(new Land({
+                    pen: pen,
+                    image: imgs["land.png"],
+                    x: imgs["land.png"].width * i,
+                    y: canvas.height - imgs["land.png"].height
+                }))
+            }
+
+            // 绘制管道
+            for (var i = 0; i < 6; i++) {
+                var pipe = new Pipe({
+                    pen: pen,
+                    topImage: imgs["pipe2.png"],
+                    bottomImage: imgs["pipe1.png"],
+                    x: 500 + 200 * i,
+                    y: -300
+                })
+                roles.push(pipe)
+            }
+
+
+            // 绘制鸟
+
+            // var bird = new Bird({
+            //      pen: pen,
+            //     image: imgs["birds.png"],
+            //     x: canvas.width / 7,
+            //     y: canvas.height / 3
+            // })
+            var bird = new Bird({
+                pen: pen,
+                image: imgs["birds.png"],
+                x: canvas.width / 7,
+                y: canvas.height / 3
+            });
+            roles.push(bird);
+
+
+            // 绘制时间
+            var time = new Time({
+                pen: pen,
+            })
+            roles.push(time)
+
+            // 不停绘制
+            var isRunning = true;
+
+            function render() {
+                pen.clearRect(0, 0, canvas.width, canvas.height)
+
+                this.pen.beginPath()
+                // // 先绘制天空
+                // sky1.draw();
+                // sky2.draw();
+
+                // //绘制大地
+                // land.draw()
+                // 绘制管道
+                // pipe1.draw()
+                // pipe2.draw()
+                // //然后绘制小鸟
+                // bird.draw()
+
+                // 循环数组里面的每一个对象进行绘制
+                roles.forEach(function (role) {
+                    role.draw()
+                }, this);
+
+                //  进行小鸟的上下碰撞结束游戏的处理
+                if (bird.y < -10 || bird.y > canvas.height - imgs["land.png"].height - 20) {
+                    isRunning = false
+                }
+                // 小鸟的碰撞管道游戏结束处理用的是isPointInPath（）方法是否有点在里面
+                if (pen.isPointInPath(bird.x + bird.picW / 1.3, bird.y + bird.picW / 1.3)) {
+                    isRunning = false
+                }
+
+                //可以代替setinterval  并且可以监测计算机运行状况使得事件帧数不一定等于17也能正常运行
+                // 我们用假设法 判定isRunning是否为ture ，是就继续
+                if (isRunning) {
+                    requestAnimationFrame(render)
+                }
+
+            }
+
+            document.onmousedown = function () {
+                bird.v = -bird.maxV / 3;
+            }
+            render()
+
+
+        });
+
+
+        // 我们发现我们想要添加天空的时候 需要加载多张图片 我们无法监听多张图片的加载是否完成
+        // 我们要实现的功能是实现同时加载多个 并且创建好函数得到图片 可以拿出来进行调用
+
+        // 创建天空
+        function Sky(option) {
+            this.pen = this.pen;
+            this.image = option.image;
+            this.x = option.x;
+            this.speed = 2;
+        }
+        Sky.prototype = {
+            constructor: Sky,
+            draw: function () {
+                pen.drawImage(this.image, this.x, 0);
+                this.x -= this.speed;
+                if (this.x < -this.image.width) {
+                    this.x += 2 * this.image.width
+                }
+            }
+        }
+
+        // 创建管道
+        function Pipe(option) {
+            this.pen = option.pen;
+            this.topImage = option.topImage;
+            this.bottomImage = option.bottomImage;
+
+            this.x = option.x;
+            this.y = -(150 + Math.random() * 150); //(-150 ~ -300)
+            // 上下间距
+            this.spaceY = 100 + 100 * Math.random();
+            // 下面的坐标
+            this.bottomY = this.y + this.spaceY + this.topImage.height
+
+            this.speed = 2;
+
+            console.log(111);
+        }
+        Pipe.prototype = {
+            constructor: Pipe,
+            draw: function () {
+
+                // 在路径上绘制一个管道大小一样的矩形区域，为小鸟与管道撞击做判断
+                this.pen.rect(this.x, this.y, this.topImage.width, this.topImage.height);
+                this.pen.rect(this.x, this.bottomY, this.bottomImage.width, this.bottomImage.height)
+
+
+                this.pen.drawImage(this.topImage, this.x, this.y);
+                this.pen.drawImage(this.bottomImage, this.x, this.bottomY);
+
+                this.x -= this.speed
+                if (this.x == -this.topImage.width) {
+                    this.x += 200 * 6
+
+                    // 管道出去后随机高度
+                    this.y = -(150 + Math.random() * 150);
+                    this.bottomY = this.y + this.spaceY + this.topImage.height
+                }
+            }
+        }
+
+
+        // 创建陆地
+        function Land(option) {
+            this.pen = option.pen;
+            this.image = option.image;
+            this.x = option.x;
+            this.y = option.y;
+            this.width = this.image.width;
+
+            this.speed = 2;
+        };
+        Land.prototype = {
+            constructor: Land,
+            draw: function () {
+                console.log(111);
+                pen.drawImage(this.image, this.x, this.y);
+                this.x -= this.speed;
+
+                if (this.x < -this.width) {
+                    this.x += 4 * this.width
+                }
+            }
+        }
+
+
+        // 鸟
+        function Bird(option) {
+            this.pen = option.pen;
+            this.image = option.image;
+            this.y = option.y;
+            this.x = option.x;
+
+
+            // 加速度
+            this.acc = 0.0002;
+            // 初始速度
+            this.v = 0;
+            // 最大速度
+            this.maxV = 0.38;
+            this.maxDeg = 70;
+            // 出发点
+
+            // 小鸟宽高
+            this.picW = this.image.width / 3;
+            this.picH = this.image.height;
+
+            this.index = 0;
+            this.lastTime = new Date()
+
+        }
+        Bird.prototype = {
+            constructor: Bird,
+
+            draw: function () {
+                // 计算每一帧需要的时间；
+                var currentTime = new Date()
+                var duration = currentTime - this.lastTime;
+                this.lastTime = currentTime;
+
+                // 经过一帧下落的距离
+                var s = this.v * duration + this.acc * duration * duration / 2;
+                this.v = this.v + this.acc * duration;
+                this.y += s;
+
+                //要旋转了
+                //  当前旋转角度
+                var deg = this.maxDeg / this.maxV * this.v;
+                //    保存前面的设置比如坐标原点
+                this.pen.save()
+                // 初始0°到70度
+                //先移动坐标系
+                this.pen.translate(this.x + this.picW / 2, this.y + this.picH / 2)
+                // 旋转
+                this.pen.rotate(convertAngle(deg))
+                this.pen.drawImage(this.image, this.picW * this.index, 0, this.picW, this.picH, -this.picW / 2, -
+                    this.picH / 2, this.picW, this.picH)
+                // 恢复前面的
+                this.pen.restore();
+
+                this.index++;
+                if (this.index == 3) {
+                    this.index = 0;
+                }
+            }
+
+        }
+
+        function Time(option) {
+            this.pen = option.pen;
+
+            this.startDate = new Date();
+
+        }
+        Time.prototype = {
+            constructor: Time,
+            draw: function () {
+
+                var duration = (new Date() - this.startDate) / 1000;
+
+                var h = Math.floor(duration / 3600);
+                var m = Math.floor((duration % 3600) / 60);
+                var s = Math.floor(duration % 60);
+
+                var text = "你坚持了" + h + "小时" + m + "分钟" + s + "秒";
+
+                this.pen.save();
+                this.pen.fillStyle = "red"
+                this.pen.font = "20px 微软雅黑";
+                this.pen.textBaseline = "top";
+                this.pen.textAlign = "right";
+                this.pen.fillText(text,800,0)
+                this.pen.restore();
+            }
+
+        }
+
+
+        /**
+         * 功能 : 可以用来监听多个图片的加载完成
+         * @param imgNames 多个图片的名字
+         * @param callback 多个图片加载完成回调的函数
+         */
+        function loadImg(imgName, callback) {
+            // 用键值对的形式保存图片以及路径
+            var imgs = {}
+            // 记加载完成的数量
+            var count = 0;
+
+
+            for (var i = 0; i < imgNames.length; i++) {
+                var imgName = imgNames[i];
+                var img = new Image()
+
+                img.src = "imgs/" + imgName;
+                // 添加进对象
+                imgs[imgName] = img
+
+
+                img.onload = function () {
+                    count++;
+                    if (count == imgNames.length) {
+                        callback(imgs);
+                    }
+                }
+            }
+        }
+
+
+
+        //将角度转为弧度
+        function convertAngle(angle) {
+            // PI:180 = ?(弧度) : 角度
+            // 弧度 = PI/180 * 角度
+            return Math.PI / 180 * angle;
+        }
+    </script>
+</body>
+
+</html>
